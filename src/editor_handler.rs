@@ -1,11 +1,11 @@
+use std::io::Write;
 use std::{fs, process::Command};
-
 use tempfile::NamedTempFile;
 
-pub fn edit_with_vim() -> Result<String, Box<dyn std::error::Error>> {
+pub fn edit_with_vim(content: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
     // Create a temporary file.
-    let file = NamedTempFile::new()?;
-    // writeln!(file, "Type your text here...")?;
+    let mut file = NamedTempFile::new()?;
+    writeln!(file, "{}", content.unwrap_or_default())?;
 
     // Get the path of the temporary file.
     let file_path = file.path().to_str().unwrap_or_default().to_string();

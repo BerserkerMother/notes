@@ -1,22 +1,24 @@
+use std::mem;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::widgets::ListState;
 
-pub struct App<'a> {
+use crate::editor_handler::edit_with_vim;
+
+pub struct App {
+    pub editor_mode: EditorMode,
     pub logo_position: u16,
-    title: &'a str,
-    enhanced_graphics: bool,
     pub should_quit: bool,
     pub mode: AppMode,
     pub tabs: StatefulList,
     pub note_list: NoteList,
 }
 
-impl<'a> App<'a> {
-    pub fn new(title: &'a str, enhanced_graphics: bool) -> App {
+impl App {
+    pub fn new() -> App {
         App {
+            editor_mode: EditorMode::None,
             logo_position: 0,
-            title,
-            enhanced_graphics,
             should_quit: false,
             mode: AppMode::Home,
             tabs: StatefulList::default(),
@@ -46,6 +48,11 @@ impl<'a> App<'a> {
         match event.code {
             KeyCode::Up => self.note_list.previous(),
             KeyCode::Down => self.note_list.next(),
+            KeyCode::Char('a') => {
+                self.editor_mode = EditorMode::Add;
+            }
+            KeyCode::Char('e') => self.editor_mode = EditorMode::Edit,
+            KeyCode::Char('d') => self.note_list.delete_note(),
             _ => (),
         };
     }
@@ -61,8 +68,6 @@ impl<'a> App<'a> {
 pub enum AppMode {
     Home,
     NoteView,
-    NoteCreate,
-    Delete,
     Search,
     Chat,
 }
@@ -71,10 +76,8 @@ impl From<usize> for AppMode {
         match value {
             0 => AppMode::Home,
             1 => AppMode::NoteView,
-            2 => AppMode::NoteCreate,
-            3 => AppMode::Delete,
-            4 => AppMode::Search,
-            5 => AppMode::Chat,
+            2 => AppMode::Search,
+            3 => AppMode::Chat,
             _ => AppMode::Home,
         }
     }
@@ -119,7 +122,7 @@ impl Default for StatefulList {
     fn default() -> Self {
         StatefulList {
             state: ListState::default(),
-            items: vec!["Home", "Notes", "Search", "Chat", "Add", "Delete"],
+            items: vec!["Home", "Notes", "Search", "Chat"],
             last_selected: None,
         }
     }
@@ -133,11 +136,14 @@ pub struct NoteList {
 }
 
 impl NoteList {
-    pub fn add_note(&mut self, id: usize, title: String, content: String) {
+    pub fn add_note(&mut self, title: String, content: String) {
         let note = Note::new(title, content);
         self.notes.push(note);
     }
     fn next(&mut self) {
+        if self.notes.is_empty() {
+            return;
+        }
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.notes.len() - 1 {
@@ -152,15 +158,20 @@ impl NoteList {
     }
 
     fn previous(&mut self) {
+        if self.notes.is_empty() {
+            return;
+        }
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.notes.len() - 1
+                    self.notes.len().saturating_sub(1)
                 } else {
                     i - 1
                 }
             }
-            None => self.last_selected.unwrap_or(self.notes.len() - 1),
+            None => self
+                .last_selected
+                .unwrap_or(self.notes.len().saturating_sub(1)),
         };
         self.state.select(Some(i));
     }
@@ -170,6 +181,49 @@ impl NoteList {
         } else {
             None
         }
+    }
+    /// adds note
+    pub fn get_user_note(&mut self) {
+        let note = match edit_with_vim(None) {
+            Ok(note) => note,
+            Err(e) => panic!("failed to parse note with error {e}"),
+        };
+        let note = note.trim();
+        if note.is_empty() {
+            return;
+        }
+        let title_end_index = note.find("\n").unwrap_or(note.len());
+        let title = note.get(..title_end_index).unwrap_or_default().to_string();
+        let content = note.get(title_end_index..).unwrap_or_default().to_string();
+        self.add_note(title, content);
+    }
+    /// if any note is selected, it deletes it!
+    pub fn delete_note(&mut self) {
+        if let Some(index) = self.state.selected() {
+            self.notes.remove(self.state.selected().unwrap_or_default());
+            // set note state after deletion
+            if self.notes.is_empty() {
+                self.state.select(None);
+            } else if self.notes.len() == index {
+                self.previous();
+            }
+        }
+    }
+    pub fn edit_note(&mut self) {
+        let current_note = match self.get_selected() {
+            Some(note) => note,
+            None => return,
+        };
+        let text = format!("{}\n{}", current_note.title, current_note.content);
+        let note = match edit_with_vim(Some(text.as_str())) {
+            Ok(note) => note,
+            Err(e) => panic!("failed to parse note with error {e}"),
+        };
+        let title_end_index = note.find("\n").unwrap_or(note.len());
+        let title = note.get(..title_end_index).unwrap_or_default().to_string();
+        let content = note.get(title_end_index..).unwrap_or_default().to_string();
+        let mut note = Note::new(title, content);
+        mem::swap(&mut self.notes[self.state.selected().unwrap()], &mut note); // :)
     }
 }
 
@@ -188,4 +242,11 @@ impl Note {
             content,
         }
     }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub enum EditorMode {
+    Add,
+    Edit,
+    None,
 }

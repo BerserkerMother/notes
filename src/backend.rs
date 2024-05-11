@@ -1,35 +1,29 @@
-use std::{
-    error::Error,
-    io,
-    time::{Duration, Instant},
-};
-
+use anyhow;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::prelude::*;
+use std::{
+    io::{stdout, Stdout},
+    time::{Duration, Instant},
+};
 
-use crate::{app::App, ui};
+use crate::{
+    app::{App, EditorMode},
+    ui,
+};
 
-pub fn run(tick_rate: Duration, enhanced_graphics: bool) -> Result<(), Box<dyn Error>> {
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
+pub fn run(tick_rate: Duration) -> anyhow::Result<()> {
     // create app and run it
-    let app = App::new("Crossterm Demo", enhanced_graphics);
-    let res = run_app(&mut terminal, app, tick_rate);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-    terminal.show_cursor()?;
-
+    let mut app = App::new();
+    // for i in 0..100 {
+    //     let title = format!("title {i}");
+    //     let content = format!("content {i}").repeat(100);
+    //     app.note_list.add_note(title, content);
+    // }
+    let res = run_app(app, tick_rate);
     if let Err(err) = res {
         println!("{err:?}");
     }
@@ -37,29 +31,54 @@ pub fn run(tick_rate: Duration, enhanced_graphics: bool) -> Result<(), Box<dyn E
     Ok(())
 }
 
-fn run_app<B: Backend>(
-    terminal: &mut Terminal<B>,
-    mut app: App,
-    tick_rate: Duration,
-) -> io::Result<()> {
+fn run_app(mut app: App, tick_rate: Duration) -> anyhow::Result<()> {
+    let mut terminal = init_terminal()?;
     let mut last_tick = Instant::now();
+
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
-
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
-        if crossterm::event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
+        if crossterm::event::poll(timeout).expect("polling event!") {
+            if let Event::Key(key) = event::read().expect("read key event!") {
                 if key.kind == KeyEventKind::Press {
                     app.handle_press(key);
+                    if app.editor_mode != EditorMode::None {
+                        clean_terminal(&mut terminal)?;
+                        if app.editor_mode == EditorMode::Add {
+                            app.note_list.get_user_note();
+                        } else {
+                            app.note_list.edit_note();
+                        }
+                        app.editor_mode = EditorMode::None;
+                        terminal = init_terminal()?;
+                    }
+                    if app.should_quit {
+                        break;
+                    };
                 }
             }
         }
         if last_tick.elapsed() >= tick_rate {
             last_tick = Instant::now();
         }
-        if app.should_quit {
-            return Ok(());
-        }
-        app.logo_position += 5; // after tick increase logo position!
+        app.logo_position += 5; // move main logo forward!
     }
+
+    clean_terminal(&mut terminal)
+}
+fn init_terminal() -> anyhow::Result<Terminal<CrosstermBackend<Stdout>>> {
+    // setup terminal
+    let mut stdout = stdout();
+    enable_raw_mode()?;
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    Ok(Terminal::new(backend)?)
+}
+
+fn clean_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
+    terminal.show_cursor()?;
+    Ok(())
 }
