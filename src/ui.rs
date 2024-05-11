@@ -41,8 +41,14 @@ pub fn render_app(f: &mut Frame, app: &mut App, area: Rect) {
 }
 pub fn render_note_view(f: &mut Frame, app: &mut App, area: Rect) {
     // divide the layout
-    let chunks =
-        Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)]).split(area);
+    let vertical =
+        Layout::vertical([Constraint::Percentage(100), Constraint::Length(1)]).split(area); // small area to add view note keys(add, edit, delete)
+    let helpers = Paragraph::new("Press a: add, e: edit, d: delete")
+        .on_light_yellow()
+        .blue();
+    f.render_widget(helpers, vertical[1]);
+    let chunks = Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)])
+        .split(vertical[0]);
     let titles = List::new(
         app.note_list
             .notes
@@ -75,7 +81,7 @@ pub fn render_note_view(f: &mut Frame, app: &mut App, area: Rect) {
 
 pub fn render_tabs(f: &mut Frame, app: &mut App, area: Rect) {
     // Calculate padding to center tabs
-    let remaining_width = area.width as isize - 47;
+    let remaining_width = area.width as isize - 30;
     let padding = (remaining_width / 2).max(0) as u16;
     let tabs = app
         .tabs
