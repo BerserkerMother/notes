@@ -4,6 +4,7 @@ use argh::FromArgs;
 
 mod app;
 mod backend;
+mod editor_handler;
 mod handler;
 mod ui;
 mod widgets;
