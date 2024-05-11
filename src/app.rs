@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::widgets::ListState;
 
@@ -10,7 +8,7 @@ pub struct App<'a> {
     pub should_quit: bool,
     pub mode: AppMode,
     pub tabs: StatefulList,
-    pub notes: NoteList,
+    pub note_list: NoteList,
 }
 
 impl<'a> App<'a> {
@@ -22,13 +20,16 @@ impl<'a> App<'a> {
             should_quit: false,
             mode: AppMode::Home,
             tabs: StatefulList::default(),
-            notes: NoteList::default(),
+            note_list: NoteList::default(),
         }
     }
     pub fn handle_press(&mut self, event: KeyEvent) {
         match self.mode {
             AppMode::Home => self.app_handler(event),
-            AppMode::NoteView => self.app_handler(event),
+            AppMode::NoteView => {
+                self.app_handler(event);
+                self.note_view_handler(event);
+            }
             _ => self.app_handler(event),
         }
     }
@@ -43,8 +44,8 @@ impl<'a> App<'a> {
     }
     fn note_view_handler(&mut self, event: KeyEvent) {
         match event.code {
-            KeyCode::Right => self.tabs.next(),
-            KeyCode::Left => self.tabs.previous(),
+            KeyCode::Up => self.note_list.previous(),
+            KeyCode::Down => self.note_list.next(),
             _ => (),
         };
     }
@@ -125,16 +126,66 @@ impl Default for StatefulList {
 }
 
 #[derive(Debug, Default)]
-struct NoteList {
-    note_state: ListState,
-    last_selected: Option<usize>,
-    titles: HashMap<usize, String>,
-    contents: HashMap<usize, String>,
+pub struct NoteList {
+    pub state: ListState,
+    pub last_selected: Option<usize>,
+    pub notes: Vec<Note>,
 }
 
 impl NoteList {
-    fn add_note(&mut self, id: usize, title: String, content: String) {
-        self.titles.insert(id, title);
-        self.contents.insert(id, content);
+    pub fn add_note(&mut self, id: usize, title: String, content: String) {
+        let note = Note::new(title, content);
+        self.notes.push(note);
+    }
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.notes.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => self.last_selected.unwrap_or(0),
+        };
+        self.state.select(Some(i));
+    }
+
+    fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.notes.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => self.last_selected.unwrap_or(self.notes.len() - 1),
+        };
+        self.state.select(Some(i));
+    }
+    pub fn get_selected(&self) -> Option<&Note> {
+        if let Some(selected) = self.state.selected() {
+            self.notes.get(selected)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Note {
+    id: Option<usize>,
+    pub title: String,
+    pub content: String,
+}
+
+impl Note {
+    pub fn new(title: String, content: String) -> Note {
+        Note {
+            id: None,
+            title,
+            content,
+        }
     }
 }
