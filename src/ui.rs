@@ -1,8 +1,10 @@
+use std::borrow::BorrowMut;
+
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Style, Stylize},
-    text,
-    widgets::{Block, BorderType, Borders, Padding, Paragraph, Tabs},
+    text::{self, Text},
+    widgets::{Block, BorderType, Borders, List, Padding, Paragraph, Tabs, Wrap},
     Frame,
 };
 
@@ -31,8 +33,44 @@ pub fn render_app(f: &mut Frame, app: &mut App, area: Rect) {
                 area,
             );
         }
+        AppMode::NoteView => {
+            render_note_view(f, app, area);
+        }
         _ => (),
     }
+}
+pub fn render_note_view(f: &mut Frame, app: &mut App, area: Rect) {
+    // divide the layout
+    let chunks =
+        Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)]).split(area);
+    let titles = List::new(
+        app.note_list
+            .notes
+            .iter()
+            .map(|note| Text::raw(note.title.as_str()).yellow()),
+    )
+    .highlight_symbol("=>")
+    .highlight_style(Style::default().red())
+    .block(
+        Block::bordered()
+            .border_type(BorderType::Double)
+            .yellow()
+            .title("title"),
+    );
+    f.render_stateful_widget(titles, chunks[0], app.note_list.state.borrow_mut());
+    let selected_note = app.note_list.get_selected();
+    let content = if let Some(note) = selected_note {
+        note.content.as_str()
+    } else {
+        "Select Note to Show!"
+    };
+    let content = Paragraph::new(content).wrap(Wrap { trim: true }).block(
+        Block::bordered()
+            .border_type(BorderType::Double)
+            .yellow()
+            .title("content"),
+    );
+    f.render_widget(content, chunks[1]);
 }
 
 pub fn render_tabs(f: &mut Frame, app: &mut App, area: Rect) {
