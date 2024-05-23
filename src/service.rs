@@ -1,3 +1,5 @@
+use std::cmp::Reverse;
+
 use anyhow::Context;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
@@ -45,7 +47,7 @@ impl NoteService {
             .filter(|&(index, _)| notes_scores[index].is_some())
             .map(|(index, note)| (note, notes_scores[index].unwrap()))
             .collect();
-        selected_notes.sort_by_key(|&(_, score)| score);
+        selected_notes.sort_by_key(|&(_, score)| Reverse(score));
         Ok(selected_notes)
     }
 

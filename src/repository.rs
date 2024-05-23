@@ -1,3 +1,4 @@
+use anyhow::{self, Context};
 use rusqlite::{self, params, Connection, Result};
 use std::{fmt::Display, path::Path};
 
@@ -6,12 +7,12 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn new(db_path: impl AsRef<Path>) -> Result<Repository> {
+    pub fn new(db_path: impl AsRef<Path>) -> anyhow::Result<Repository> {
         let db = Connection::open(db_path)?;
         Ok(Repository { db })
     }
 
-    pub fn initialize_db(&self) -> Result<()> {
+    pub fn initialize_db(&mut self) -> anyhow::Result<()> {
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS note (
                 id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +21,26 @@ impl Repository {
             )",
             (),
         )?;
+        // insert test notes!
+        self.insert_test_notes()?;
+
         Ok(())
+    }
+
+    fn insert_test_notes(&mut self) -> anyhow::Result<()> {
+        let notes: Vec<Note> = vec![
+        (1, "Meeting Notes", "Discuss project milestones and deadlines for Q2. Review pending tasks and assign new ones."),
+        (2, "Grocery List", "Milk, Eggs, Bread, Butter, Chicken, Spinach, Tomatoes, Bananas, Apples, Orange Juice"),
+        (3, "Workout Plan", "Monday: Chest and Triceps, Tuesday: Back and Biceps, Wednesday: Rest, Thursday: Legs and Shoulders, Friday: Full Body, Saturday: Cardio, Sunday: Rest"),
+        (4, "Vacation Ideas", "Visit the Grand Canyon, Explore Yellowstone National Park, Take a trip to New York City, Relax on the beaches of Hawaii, Go skiing in Colorado"),
+        (5, "Book Recommendations", "Sapiens by Yuval Noah Harari, Atomic Habits by James Clear, The Lean Startup by Eric Ries, Educated by Tara Westover, The Power of Habit by Charles Duhigg"),
+        (6, "Recipe for Spaghetti", "Ingredients: Spaghetti, Marinara Sauce, Ground Beef, Garlic, Onion, Olive Oil, Salt, Pepper. Instructions: Cook spaghetti according to package directions. In a separate pan, sauté garlic and onion in olive oil, add ground beef and cook until browned. Mix in marinara sauce, season with salt and pepper. Combine with cooked spaghetti."),
+        (7, "To-Do List", "1. Finish report for work, 2. Call the bank, 3. Schedule dentist appointment, 4. Buy a gift for Sarah's birthday, 5. Clean the garage"),
+        (8, "Movie Watchlist", "Inception, The Dark Knight, Interstellar, The Matrix, The Shawshank Redemption, Fight Club, Forrest Gump, The Godfather, Pulp Fiction, The Lord of the Rings"),
+        (9, "Learning Goals", "1. Master Python programming, 2. Learn data visualization techniques, 3. Understand machine learning algorithms, 4. Get proficient in SQL and databases, 5. Study cloud computing and AWS services"),
+        (10, "Home Improvement Projects", "1. Paint the living room, 2. Install new kitchen cabinets, 3. Replace old windows, 4. Build a deck in the backyard, 5. Update the bathroom fixtures")
+    ].into_iter().map(|el| Note::new(Some(el.0), el.1.to_string(), el.2.to_string())).collect();
+        self.add(notes).context("Add test notes!")
     }
 
     pub fn get_notes(&self) -> Result<Vec<Note>> {
@@ -38,9 +58,10 @@ impl Repository {
     pub fn add(&mut self, notes: Vec<Note>) -> Result<()> {
         let transaction = self.db.transaction()?;
         {
-            let mut stmt = transaction.prepare("INSERT INTO note (title, text) VALUES (?, ?)")?;
+            let mut stmt =
+                transaction.prepare("INSERT INTO note (id, title, text) VALUES (?, ?, ?)")?;
             for note in &notes {
-                stmt.execute(params![note.title, note.text])?;
+                stmt.execute(params![note.id.unwrap(), note.title, note.text])?;
             }
         }
         transaction.commit()?;
