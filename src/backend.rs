@@ -18,11 +18,11 @@ use crate::{
 pub fn run(tick_rate: Duration) -> anyhow::Result<()> {
     // create app and run it
     let mut app = App::new();
-    // for i in 0..100 {
-    //     let title = format!("title {i}");
-    //     let content = format!("content {i}").repeat(100);
-    //     app.note_list.add_note(title, content);
-    // }
+    for i in 0..100 {
+        let title = format!("title {i}");
+        let content = format!("content {i}").repeat(100);
+        app.note_list.add_note(title, content);
+    }
     let res = run_app(app, tick_rate);
     if let Err(err) = res {
         println!("{err:?}");

@@ -36,9 +36,47 @@ pub fn render_app(f: &mut Frame, app: &mut App, area: Rect) {
         AppMode::NoteView => {
             render_note_view(f, app, area);
         }
+        AppMode::Search => render_search(f, app, area),
         _ => (),
     }
 }
+pub fn render_search(f: &mut Frame, app: &mut App, area: Rect) {
+    // divide the layout
+    let vertical =
+        Layout::vertical([Constraint::Percentage(100), Constraint::Length(2)]).split(area); // small area to add view note keys(add, edit, delete)
+    let helpers = Paragraph::new(app.search_query.as_str())
+        .on_light_yellow()
+        .blue();
+    f.render_widget(helpers, vertical[1]);
+    let chunks = Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)])
+        .split(vertical[0]);
+    let titles = List::new(
+        app.get_search_result()
+            .iter()
+            .map(|note| Text::raw(note.title.as_str()).yellow()),
+    )
+    .block(
+        Block::bordered()
+            .border_type(BorderType::Double)
+            .yellow()
+            .title("title"),
+    );
+    f.render_widget(titles, chunks[0]);
+    let selected_note = app.note_list.get_selected();
+    let content = if let Some(note) = selected_note {
+        note.content.as_str()
+    } else {
+        "Search Something!"
+    };
+    let content = Paragraph::new(content).wrap(Wrap { trim: true }).block(
+        Block::bordered()
+            .border_type(BorderType::Double)
+            .yellow()
+            .title("content"),
+    );
+    f.render_widget(content, chunks[1]);
+}
+
 pub fn render_note_view(f: &mut Frame, app: &mut App, area: Rect) {
     // divide the layout
     let vertical =
