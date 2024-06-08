@@ -1,5 +1,11 @@
-/target
+# python related
+**/**__pycache__
+
+notes/target
 .vscode
 
 # database!
 **/**.db
+
+# env file
+**/**.env

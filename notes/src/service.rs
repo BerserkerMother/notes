@@ -51,7 +51,7 @@ impl NoteService {
         Ok(selected_notes)
     }
 
-    pub fn semantic_search_notes(&self, query: &str) -> Vec<Note> {
+    pub fn semantic_search_notes(&self, _query: &str) -> Vec<Note> {
         todo!()
     }
 }
