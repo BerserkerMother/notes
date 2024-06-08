@@ -1,0 +1,36 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${VECTOR_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${VECTOR_DB_USERNAME}
+    ports:
+      - 27017:27017
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    depends_on:
+      - mongo
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${VECTOR_DB_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${VECTOR_DB_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongo
+    ports:
+      - 5000:8081
+
+  ai-engine:
+    build:
+      context: ai
+      dockerfile: Dockerfile
+    environment:
+      VECTOR_DB_CONN_STRING: ${VECTOR_DB_CONN_STRING}
+    ports:
+      - 5001:5000
+    volumes:
+      - ./ai/src:/app
+    depends_on: 
+      - mongo
+
+
