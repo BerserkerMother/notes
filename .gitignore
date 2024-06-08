@@ -1,5 +1,8 @@
-/target
+notes/target
 .vscode
 
 # database!
 **/**.db
+
+# env file
+**/**.env
