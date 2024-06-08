@@ -18,7 +18,8 @@ class VectorDB:
         self.client = self._get_client(conn_string)
         self.embedding_db = self.client.note.embeddings
 
-    def add_emb(self, _id: int, embeddings: List[float]):
+    def add_emb(self, _id: int, embeddings):
+        embeddings = embeddings.tolist()
         self.embedding_db.insert_one(dict(_id=_id, vec=embeddings))
 
     def remove_emb(self, _id: int):
