@@ -4,7 +4,7 @@ services:
     container_name: mongo
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${VECTOR_DB_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${VECTOR_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${VECTOR_DB_PASSWORD}
     ports:
       - 27017:27017
 
@@ -30,6 +30,7 @@ services:
       - 5001:5000
     volumes:
       - ./ai/src:/app
+      - ./ai/tests/:/app/tests
     depends_on: 
       - mongo
 
