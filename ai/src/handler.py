@@ -3,7 +3,7 @@ import logging
 
 from flask import Flask, jsonify, request
 
-from embedding import cosine_sim
+from embedding import cosine_sim, embed
 from vector_db import VectorDB
 
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,9 @@ def home():
 def add():
     data = request.get_json()
     id = data["id"]
-    vec = data["vec"]
+    sentence = data["sentence"]
+    vec = embed([sentence])
+
     db.add_emb(id, vec)
     return "Sucess"
 
@@ -40,7 +42,8 @@ def remove():
 @app.route("/search")
 def search():
     data = request.get_json()
-    vec = data["vec"]
+    sentence = data["query"]
+    vec = embed([sentence])
 
     ids, embds = db.get_embds()
     indicies, scores = cosine_sim(vec, embds)
