@@ -1,4 +1,4 @@
-use std::cmp::Reverse;
+use std::{cmp::Reverse, collections::HashMap};
 
 use anyhow::Context;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
@@ -18,12 +18,23 @@ impl NoteService {
         }
     }
 
-    pub fn add_note(&mut self, note: Note) -> anyhow::Result<()> {
+    pub async fn add_note(&mut self, note: Note) -> anyhow::Result<()> {
         let notes = vec![note];
-        self.db_manager.add(notes).context("service add note")
+        self.db_manager.add(&notes).context("service add note")?;
+        crate::add(&notes).await.context("service ai add note")
     }
 
-    pub fn get_note(&mut self, id: usize) -> anyhow::Result<Note> {
+    pub async fn search_ai(&self, query: &str) -> anyhow::Result<Vec<(Note, f64)>> {
+        let resp = crate::search(query).await?;
+        let res = resp
+            .into_iter()
+            .map(|(key, value)| (self.get_note(key).unwrap(), value))
+            .filter(|&(_, score)| score > 0.3)
+            .collect();
+        Ok(res)
+    }
+
+    pub fn get_note(&self, id: usize) -> anyhow::Result<Note> {
         self.db_manager.get_note(id).context("service get one note")
     }
 
