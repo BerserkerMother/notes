@@ -33,5 +33,17 @@ services:
       - ./ai/tests/:/app/tests
     depends_on: 
       - mongo
-
+  
+  notes:
+    build:
+      context: notes
+      dockerfile: Dockerfile
+    environment:
+      AI_ENGINE: http://ai-engine:5000
+    volumes:
+      - ./notes/src:/app/src
+      - ./notes/Cargo.lock:/app/Cargo.lock
+      - ./notes/Cargo.toml:/app/Cargo.toml
+    depends_on:
+      - ai-engine
 
